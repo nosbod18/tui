@@ -46,9 +46,9 @@ int     tui_fg          (uint32_t c);
 int     tui_bg          (uint32_t c);
 char    tui_ch          (uint32_t c);
 
-void    tui_set_attr    (uint32_t *c, int attr);
-void    tui_set_fg      (uint32_t *c, int fg);
-void    tui_set_bg      (uint32_t *c, int bg);
+void    tui_set_attr    (uint32_t *c, uint32_t attr);
+void    tui_set_fg      (uint32_t *c, uint32_t fg);
+void    tui_set_bg      (uint32_t *c, uint32_t bg);
 void    tui_set_ch      (uint32_t *c, char ch);
 
 void    tui_putc        (int x, int y, uint32_t c);
@@ -183,16 +183,16 @@ char tui_ch(uint32_t c) {
     return c & 255;
 }
 
-void tui_set_attr(uint32_t *c, int attr) {
-    *c = (*c & ~(15 << 16)) | ((attr & 15) << 16);
+void tui_set_attr(uint32_t *c, uint32_t attr) {
+    *c = (*c & ~(15 << 16)) | attr;
 }
 
-void tui_set_fg(uint32_t *c, int fg) {
-    *c = (*c & ~(15 << 12)) | ((fg > 0) << 15) | ((fg & 7) << 12);
+void tui_set_fg(uint32_t *c, uint32_t fg) {
+    *c = (*c & ~(15 << 12)) | ((fg > 0) << 15) | fg;
 }
 
-void tui_set_bg(uint32_t *c, int bg) {
-    *c = (*c & ~(15 << 8)) | ((bg > 0) << 11) | ((bg & 7) << 8);
+void tui_set_bg(uint32_t *c, uint32_t bg) {
+    *c = (*c & ~(15 << 8)) | ((bg > 0) << 11) | bg;
 }
 
 void tui_set_ch(uint32_t *c, char ch) {
