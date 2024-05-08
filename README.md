@@ -6,6 +6,7 @@ A super simple TUI, made for a roguelike side project that I decided to extract 
 ##### Draw single character to the screen:
 
 ```c
+#define TUI_IMPL
 #include "tui.h"
 
 int main(void) {
@@ -31,6 +32,7 @@ int main(void) {
 ##### Move a character around on the screen:
 
 ```c
+#define TUI_IMPL
 #include "tui.h"
 
 int main(void) {
