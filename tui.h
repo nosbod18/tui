@@ -11,55 +11,22 @@
 #pragma once
 #include <stdint.h>
 
-enum {
-    TUI_BOLD        = 1 << 16,
-    TUI_DIM         = 2 << 16,
-    TUI_ITALIC      = 3 << 16,
-    TUI_UNDERLINE   = 4 << 16,
+#define     TUI_BG(r, g, b) ((UINT64_C(1) << 57) | ((UINT64_C((r) & 0xff)) << 48) | ((UINT64_C((g) & 0xff)) << 40) | ((UINT64_C((b) & 0xff)) << 32))
+#define     TUI_FG(r, g, b) ((UINT64_C(1) << 56) | ((UINT64_C((r) & 0xff)) << 24) | ((UINT64_C((g) & 0xff)) << 16) | ((UINT64_C((b) & 0xff)) <<  8))
 
-    TUI_FG_BLACK    = 1 << 15 | 0 << 12,
-    TUI_FG_RED      = 1 << 15 | 1 << 12,
-    TUI_FG_GREEN    = 1 << 15 | 2 << 12,
-    TUI_FG_YELLOW   = 1 << 15 | 3 << 12,
-    TUI_FG_BLUE     = 1 << 15 | 4 << 12,
-    TUI_FG_PURPLE   = 1 << 15 | 5 << 12,
-    TUI_FG_CYAN     = 1 << 15 | 6 << 12,
-    TUI_FG_WHITE    = 1 << 15 | 7 << 12,
+void        tui_init        (int *w, int *h);
+void        tui_quit        (void);
+int         tui_read        (void);
+void        tui_present     (void);
 
-    TUI_BG_BLACK    = 1 << 11 | 0 <<  8,
-    TUI_BG_RED      = 1 << 11 | 1 <<  8,
-    TUI_BG_GREEN    = 1 << 11 | 2 <<  8,
-    TUI_BG_YELLOW   = 1 << 11 | 3 <<  8,
-    TUI_BG_BLUE     = 1 << 11 | 4 <<  8,
-    TUI_BG_PURPLE   = 1 << 11 | 5 <<  8,
-    TUI_BG_CYAN     = 1 << 11 | 6 <<  8,
-    TUI_BG_WHITE    = 1 << 11 | 7 <<  8,
-};
-
-void    tui_init        (int *w, int *h);
-void    tui_quit        (void);
-int     tui_read        (void);
-void    tui_present     (void);
-
-int     tui_attr        (uint32_t c);
-int     tui_fg          (uint32_t c);
-int     tui_bg          (uint32_t c);
-char    tui_ch          (uint32_t c);
-
-void    tui_set_attr    (uint32_t *c, uint32_t attr);
-void    tui_set_fg      (uint32_t *c, uint32_t fg);
-void    tui_set_bg      (uint32_t *c, uint32_t bg);
-void    tui_set_ch      (uint32_t *c, char ch);
-
-void    tui_putc        (int x, int y, uint32_t c);
-void    tui_puts        (int x, int y, uint32_t const *s, int n);
-void    tui_putf        (int x, int y, uint32_t attr, char const *f, ...);
-void    tui_puth        (int x, int y, int w, uint32_t c);
-void    tui_putv        (int x, int y, int h, uint32_t c);
-void    tui_putr        (int x, int y, int w, int h, uint32_t c);
-void    tui_putb        (int x, int y, int w, int h, uint32_t horizontal, uint32_t vertical, uint32_t corner);
-void    tui_blit        (int x, int y, int w, int h, uint32_t const *s);
-
+void        tui_putc        (int x, int y, uint64_t c);
+void        tui_puts        (int x, int y, uint64_t const *s, int n);
+void        tui_putf        (int x, int y, uint64_t attr, char const *f, ...);
+void        tui_puth        (int x, int y, int w, uint64_t c);
+void        tui_putv        (int x, int y, int h, uint64_t c);
+void        tui_putr        (int x, int y, int w, int h, uint64_t c);
+void        tui_putb        (int x, int y, int w, int h, uint64_t horizontal, uint64_t vertical, uint64_t corner);
+void        tui_blit        (int x, int y, int w, int h, uint64_t const *s);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 //   _____ __  __ _____  _      ______ __  __ ______ _   _ _______    _______ _____ ____  _   _   //
@@ -84,7 +51,7 @@ void    tui_blit        (int x, int y, int w, int h, uint32_t const *s);
 
 struct {
     struct termios raw, old;
-    uint32_t *tiles[2];
+    uint64_t *tiles[2];
     int w, h;
 } _tui = {0};
 
@@ -144,20 +111,36 @@ void tui_present(void) {
     if (memcmp(_tui.tiles[0], _tui.tiles[1], _tui.w * _tui.h * sizeof *_tui.tiles[0]) == 0)
         return;
 
-    char *line = malloc((_tui.w * 11) + 8);
+    char *line = malloc((_tui.w * 37) + 8);
 
     for (int y = 0; y < _tui.h; y++) {
         if (memcmp(&_tui.tiles[0][y * _tui.w], &_tui.tiles[1][y * _tui.w], _tui.w * sizeof *_tui.tiles[0]) == 0)
             continue;
 
         char *ptr = line;
+        ptr += snprintf(ptr, 8 + 1, "\x1b[%d;1H", y + 1);
 
-        int n = snprintf(NULL, 0, "\x1b[%d;1H", y + 1);
-        ptr += snprintf(ptr, n + 1, "\x1b[%d;1H", y + 1);
-
+        // 000000bf rrrrrrrr gggggggg bbbbbbbb rrrrrrrr gggggggg bbbbbbbb ccccccccc
         for (int x = 0; x < _tui.w; x++) {
-            uint32_t c = _tui.tiles[0][x + y * _tui.w];
-            ptr += snprintf(ptr, 11 + 1, "\x1b[%u;3%u;4%um%c", tui_attr(c), tui_fg(c), tui_bg(c), tui_ch(c));
+            uint64_t c = _tui.tiles[0][x + y * _tui.w];
+
+            *ptr++ = '\x1b';
+            *ptr++ = '[';
+
+            if ((c >> 56) & 3) {
+                // background
+                if ((c >> 57) & 1)
+                    ptr += snprintf(ptr, 16 + 1, "48;2;%d;%d;%d", (int)(c >> 48) & 0xff, (int)(c >> 40) & 0xff, (int)(c >> 32) & 0xff);
+
+                // foreground
+                if ((c >> 56) & 1)
+                    ptr += snprintf(ptr, 17 + 1, "%c38;2;%d;%d;%d", ((c >> 57) & 1) ? ';' : 0, (int)(c >> 24) & 0xff, (int)(c >> 16) & 0xff, (int)(c >> 8) & 0xff);
+            } else {
+                *ptr++ = '0';
+            }
+
+            *ptr++ = 'm';
+            *ptr++ = c & 0xff;
         }
 
         write(STDOUT_FILENO, line, ptr - line);
@@ -167,49 +150,17 @@ void tui_present(void) {
     free(line);
 }
 
-int tui_attr(uint32_t c) {
-    return (c >> 16) & 15;
-}
-
-int tui_fg(uint32_t c) {
-    return (c >> 15) & 1 ? (c >> 12) & 7 : 9;
-}
-
-int tui_bg(uint32_t c) {
-    return (c >> 11) & 1 ? (c >>  8) & 7 : 9;
-}
-
-char tui_ch(uint32_t c) {
-    return c & 255;
-}
-
-void tui_set_attr(uint32_t *c, uint32_t attr) {
-    *c = (*c & ~(15 << 16)) | attr;
-}
-
-void tui_set_fg(uint32_t *c, uint32_t fg) {
-    *c = (*c & ~(15 << 12)) | ((fg > 0) << 15) | fg;
-}
-
-void tui_set_bg(uint32_t *c, uint32_t bg) {
-    *c = (*c & ~(15 << 8)) | ((bg > 0) << 11) | bg;
-}
-
-void tui_set_ch(uint32_t *c, char ch) {
-    *c = (*c & ~255) | ch;
-}
-
-void tui_putc(int x, int y, uint32_t c) {
+void tui_putc(int x, int y, uint64_t c) {
     if (x >= 0 && y >= 0 && x < _tui.w && y < _tui.h)
         _tui.tiles[0][x + y * _tui.w] = c;
 }
 
-void tui_puts(int x, int y, uint32_t const *s, int n) {
+void tui_puts(int x, int y, uint64_t const *s, int n) {
     for (int i = 0; i < n; i++)
         tui_putc(x + i, y, s[i]);
 }
 
-void tui_putf(int x, int y, uint32_t attr, char const *f, ...) {
+void tui_putf(int x, int y, uint64_t attr, char const *f, ...) {
     va_list ap;
     va_start(ap, f);
 
@@ -223,23 +174,23 @@ void tui_putf(int x, int y, uint32_t attr, char const *f, ...) {
     free(buf);
 }
 
-void tui_puth(int x, int y, int w, uint32_t c) {
+void tui_puth(int x, int y, int w, uint64_t c) {
     for (int xx = 0; xx < w; xx++)
         tui_putc(x + xx, y, c);
 }
 
-void tui_putv(int x, int y, int h, uint32_t c) {
+void tui_putv(int x, int y, int h, uint64_t c) {
     for (int yy = 0; yy < h; yy++)
         tui_putc(x, y + yy, c);
 }
 
-void tui_putr(int x, int y, int w, int h, uint32_t c) {
+void tui_putr(int x, int y, int w, int h, uint64_t c) {
     for (int yy = 0; yy < h; yy++)
         for (int xx = 0; xx < w; xx++)
             tui_putc(x + xx, y + yy, c);
 }
 
-void tui_putb(int x, int y, int w, int h, uint32_t horizontal, uint32_t vertical, uint32_t corner) {
+void tui_putb(int x, int y, int w, int h, uint64_t horizontal, uint64_t vertical, uint64_t corner) {
     tui_putc(x,     y,     corner);
     tui_putc(x + w, y,     corner);
     tui_putc(x + w, y + h, corner);
@@ -252,7 +203,7 @@ void tui_putb(int x, int y, int w, int h, uint32_t horizontal, uint32_t vertical
     tui_putv(x + w, y + 1, h - 1, vertical);
 }
 
-void tui_blit(int x, int y, int w, int h, uint32_t const *s) {
+void tui_blit(int x, int y, int w, int h, uint64_t const *s) {
     for (int yy = 0; yy < h; yy++)
         for (int xx = 0; xx < w; xx++)
             tui_putc(x + xx, y + yy, s[xx + yy * w]);
