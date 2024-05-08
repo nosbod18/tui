@@ -33,7 +33,6 @@ void tui_init(int *w, int *h) {
 
     _tui.w = winsize.ws_col;
     _tui.h = winsize.ws_row;
-
     _tui.tiles[0] = malloc(_tui.w * _tui.h * sizeof *_tui.tiles[0]);
     _tui.tiles[1] = malloc(_tui.w * _tui.h * sizeof *_tui.tiles[1]);
 
@@ -78,7 +77,7 @@ void tui_present(void) {
     char *line = malloc((_tui.w * 11) + 8);
 
     for (int y = 0; y < _tui.h; y++) {
-        if (memcmp(&_tui.tiles[0][y * _tui.w], &_tui.tiles[1][y * _tui.h], _tui.w * sizeof *_tui.tiles[0]) == 0)
+        if (memcmp(&_tui.tiles[0][y * _tui.w], &_tui.tiles[1][y * _tui.w], _tui.w * sizeof *_tui.tiles[0]) == 0)
             continue;
 
         char *ptr = line;
@@ -88,7 +87,12 @@ void tui_present(void) {
 
         for (int x = 0; x < _tui.w; x++) {
             uint32_t c = _tui.tiles[0][x + y * _tui.w];
-            ptr += snprintf(ptr, 11 + 1, "\x1b[%u;3%u;4%um%c", tui_attr(c), tui_fg(c), tui_bg(c), tui_ch(c));
+            ptr += snprintf(ptr, 11 + 1, "\x1b[%u;3%u;4%um%c",
+                    (c >> 16) & 15,
+                    (c >> 15) & 1 ? (c >> 12) & 7 : 9,
+                    (c >> 11) & 1 ? (c >>  8) & 7 : 9,
+                     c & 255
+            );
         }
 
         write(STDOUT_FILENO, line, ptr - line);
@@ -96,38 +100,6 @@ void tui_present(void) {
     }
 
     free(line);
-}
-
-int tui_attr(uint32_t c) {
-    return (c >> 16) & 15;
-}
-
-int tui_fg(uint32_t c) {
-    return (c >> 15) & 1 ? (c >> 11) & 7: 9;
-}
-
-int tui_bg(uint32_t c) {
-    return (c >> 12) & 1 ? (c >> 8) & 7: 9;
-}
-
-char tui_ch(uint32_t c) {
-    return c & 255;
-}
-
-void tui_set_attr(uint32_t *c, int attr) {
-    *c = (*c & ~(15 << 16)) | (attr << 16);
-}
-
-void tui_set_fg(uint32_t *c, int fg) {
-    *c = (*c & ~(15 << 12)) | (fg << 12);
-}
-
-void tui_set_bg(uint32_t *c, int bg) {
-    *c = (*c & ~(15 << 8)) | (bg << 8);
-}
-
-void tui_set_ch(uint32_t *c, char ch) {
-    *c = (*c & ~255) | ch;
 }
 
 void tui_putc(int x, int y, uint32_t c) {
