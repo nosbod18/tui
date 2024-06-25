@@ -16,7 +16,7 @@ int main(void) {
     tui_init(&w, &h);
 
     // Print a yellow '@' in the center of the screen
-    tui_putc(w/2, h/2, '@' | TUI_FG_YELLOW(255, 255, 0));
+    tui_putc(w/2, h/2, '@' | TUI_FG(255, 255, 0));
 
     // Must be called to flush the buffer and actually print everything to the screen
     tui_present();
